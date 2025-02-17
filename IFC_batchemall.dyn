@@ -1,0 +1,613 @@
+{
+  "Uuid": "f200ff1e-1178-4b04-bbb6-a1eea581f324",
+  "IsCustomNode": false,
+  "Description": null,
+  "Name": "IFC_batchemall",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [
+    {
+      "Id": "07441063450045b9af5b5e14303f58d8",
+      "Name": "Enter Custom Save Path (Optional)\r\n",
+      "Type": "string",
+      "Value": "C:\\Users\\radum\\Downloads",
+      "Description": "Creates a string."
+    },
+    {
+      "Id": "e83da14db6514f8485212e4d864dfa75",
+      "Name": "Enter 3D Views to Export (Comma-Separated)\r\n",
+      "Type": "string",
+      "Value": "tree",
+      "Description": "Creates a string."
+    }
+  ],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "import clr\r\nimport os\r\nimport sys\r\n\r\n# Import Revit API\r\nclr.AddReference('RevitServices')\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import FilteredElementCollector, View, IFCExportOptions, Transaction\r\n\r\n# Try importing Windows Forms for pop-ups (ignored in Dynamo Player)\r\ntry:\r\n    clr.AddReference('System.Windows.Forms')\r\n    from System.Windows.Forms import MessageBox\r\n    use_messagebox = True\r\nexcept:\r\n    use_messagebox = False  # Ignore pop-ups in Dynamo Player\r\n\r\n# --- INPUTS FROM DYNAMO ---\r\nexport_folder = IN[0]  # Folder where IFC files will be exported\r\nviews_list = IN[1]  # List of view names for export\r\n\r\n# Ensure views_list is a proper list (Fix Dynamo Player interpreting it as a single string)\r\nif isinstance(views_list, str):\r\n    views_list = [v.strip() for v in views_list.split(\",\")]  # Split by comma and trim spaces\r\n\r\n# Get active document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# --- ERROR HANDLING ---\r\nerrors = []\r\n\r\n# 1. Ensure the export folder exists (create if missing)\r\nif not os.path.exists(export_folder):\r\n    try:\r\n        os.makedirs(export_folder)\r\n    except Exception as e:\r\n        errors.append(\"⚠️📁 Error: Could not create folder: {}\\n{}\".format(export_folder, str(e)))\r\n\r\n# 2. Check if views exist in Revit\r\nall_views = {v.Name: v for v in FilteredElementCollector(doc).OfClass(View)}  # Get all views\r\nmissing_views = [v for v in views_list if v not in all_views]\r\n\r\nif missing_views:\r\n    errors.append(\"⚠️😵 Error: Views not found: {}\".format(\", \".join(missing_views)))\r\n\r\n# --- EXECUTION ---\r\nif errors:\r\n    # If errors exist, show message in Dynamo Player\r\n    error_message = \"\\n\".join(errors)\r\n    OUT = \"❌🕵️ Script failed with errors:\\n{}\".format(error_message)\r\n\r\n    # Show pop-up in full Dynamo (not in Dynamo Player)\r\n    if use_messagebox:\r\n        MessageBox.Show(error_message, \"Dynamo IFC Export Error\")\r\n\r\nelse:\r\n    # Proceed with IFC export\r\n    success_exports = []\r\n    \r\n    with Transaction(doc, \"Batch IFC Export\") as t:\r\n        t.Start()\r\n        for view_name in views_list:\r\n            view = all_views.get(view_name)\r\n            if view:\r\n                # Define IFC file path\r\n                ifc_file = os.path.join(export_folder, \"{}.ifc\".format(view_name))\r\n\r\n                # Export IFC\r\n                doc.Export(export_folder, \"{}.ifc\".format(view_name), IFCExportOptions())\r\n                success_exports.append(ifc_file)  # Append full file path to the list\r\n\r\n        t.Commit()\r\n\r\n    # Join full paths correctly in the success message\r\n    success_message = \"✅ IFC Export Completed!\\n\\nCheck your results in the main path and feel free to give me some feedback https://github.com/RaduIoanM/. Thanks, Radu!🦆🤝\\n\\nFiles saved in: {}\\nExported:\\n{}\".format(\r\n        export_folder, \"\\n\".join(success_exports)  # Ensure proper formatting\r\n    )\r\n    OUT = success_message\r\n\r\n    # Show pop-up in full Dynamo (not in Dynamo Player)\r\n    if use_messagebox:\r\n        MessageBox.Show(success_message, \"Dynamo IFC Export Completed\")\r\n",
+      "VariableInputPorts": true,
+      "Id": "a7a231de10bf4007b1a98a7da298effd",
+      "Inputs": [
+        {
+          "Id": "8b6067fd2115411d8f724c39432f61ce",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "f5acad71c2e74b3e9e17af5f1a39d11f",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "dc137623361241e7b5e0a2146e72e16f",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded IronPython script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "NodeType": "StringInputNode",
+      "InputValue": "C:\\Temp\\IFC_Exports",
+      "Id": "03206c9eef1f4727adff8dfc3adc0bdf",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "d667cd6c48a44969ba0e3da031315610",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "NodeType": "StringInputNode",
+      "InputValue": "IFC2x3 Coordination View",
+      "Id": "150e4aebc4564829bb92d50ac63a9e41",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "f9e0deb29d8f4afa8c3b28130e309f55",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "import clr\r\nclr.AddReference(\"RevitServices\")\r\nclr.AddReference(\"RevitAPI\")\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom Autodesk.Revit.DB import *\r\n\r\n# Get active Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Get available IFC versions from the Revit API\r\navailable_versions = [attr for attr in dir(IFCVersion) if not attr.startswith(\"__\")]\r\n\r\nOUT = available_versions\r\n",
+      "VariableInputPorts": true,
+      "Id": "e5141ea9fe4345b1b97f118b7979c558",
+      "Inputs": [
+        {
+          "Id": "e7c151f93fdb40fab52caf3219495ec4",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "ba9f1074f3df43798cd2bd93b5403911",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded IronPython script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "NodeType": "ExtensionNode",
+      "Id": "602f29e0f7214b56bd463190e3527079",
+      "Inputs": [
+        {
+          "Id": "8c7113bdadec429b8e6931fee82f7925",
+          "Name": "",
+          "Description": "Node to evaluate.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "7001620dd8e74cac9e57946a9992384a",
+          "Name": "",
+          "Description": "Watch contents.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualize the output of node."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "NodeType": "StringInputNode",
+      "InputValue": "C:\\Users\\radum\\Downloads",
+      "Id": "07441063450045b9af5b5e14303f58d8",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "40435a97dce94e7da0a4cd537a1ec26d",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "NodeType": "StringInputNode",
+      "InputValue": "tree",
+      "Id": "e83da14db6514f8485212e4d864dfa75",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "1ce42ee892d14f53baa668a1f7818312",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "NodeType": "ExtensionNode",
+      "Id": "6fa7e94e8b174f099bff1c2b1d83b2f8",
+      "Inputs": [
+        {
+          "Id": "09aa2b3318ab4fe49eda585d63c144f5",
+          "Name": "",
+          "Description": "Node to evaluate.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "7fa0015537b8459ab7653aa93b5afc5a",
+          "Name": "",
+          "Description": "Watch contents.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualize the output of node."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "import clr\r\n\r\n# If running inside full Dynamo, this will work, but Dynamo Player does NOT support pop-ups\r\ntry:\r\n    clr.AddReference('System.Windows.Forms')\r\n    from System.Windows.Forms import MessageBox\r\n    \r\n    # Message text\r\n    message = \"✅ Your Dynamo script has completed successfully!\"\r\n    title = \"Dynamo Notification\"\r\n\r\n    # Show message box (Only works in full Dynamo, not Dynamo Player)\r\n    MessageBox.Show(message, title)\r\n\r\nexcept:\r\n    pass  # Ignore errors if running in Dynamo Player\r\n\r\n# Ensure output message appears in Dynamo Player's output panel\r\nOUT = \"✅ Script executed successfully! Check your results in the main path and feel free to give some feedback https://github.com/RaduIoanM/. Thanks!\"\r\n",
+      "VariableInputPorts": true,
+      "Id": "561a9912c22444109db374f8556109d5",
+      "Inputs": [
+        {
+          "Id": "f8e13d9515564137b72bb487a49e699d",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "b40b0fc67f17458d996c3a159e720a4a",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded IronPython script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "NodeType": "ExtensionNode",
+      "Id": "b861b21db77d4ef58fbda57e70cb1767",
+      "Inputs": [
+        {
+          "Id": "fc480d984d0044f4a71ffd46965b8062",
+          "Name": "",
+          "Description": "Node to evaluate.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "a4e8de03bed643e087e2a364ff60aad5",
+          "Name": "",
+          "Description": "Watch contents.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualize the output of node."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "import clr\r\nclr.AddReference(\"RevitServices\")\r\nclr.AddReference(\"RevitAPI\")\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom Autodesk.Revit.DB import *\r\n\r\n# Get the active Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Collect all 3D views (excluding templates)\r\ncollector = FilteredElementCollector(doc).OfClass(View3D)\r\nview_names = [view.Name for view in collector if not view.IsTemplate]\r\n\r\n# Output the list for Dynamo Player\r\nOUT = [\"Available 3D Views:\"] + view_names\r\n",
+      "VariableInputPorts": true,
+      "Id": "d375d68e7a3e46049ffa26890bc42611",
+      "Inputs": [
+        {
+          "Id": "c326a3703af14cd59335e681d891c43a",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "d0c57faa731a4ab99b07931373729d81",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded IronPython script."
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "",
+      "Id": "29bba0a158a54f4db3979a0f90140c16",
+      "Inputs": [],
+      "Outputs": [],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "dc137623361241e7b5e0a2146e72e16f",
+      "End": "09aa2b3318ab4fe49eda585d63c144f5",
+      "Id": "17fa0ab63bd64613aceecfe20b06bb5a"
+    },
+    {
+      "Start": "d667cd6c48a44969ba0e3da031315610",
+      "End": "8b6067fd2115411d8f724c39432f61ce",
+      "Id": "8cd701f59dd043dbbd484372528ddbd5"
+    },
+    {
+      "Start": "ba9f1074f3df43798cd2bd93b5403911",
+      "End": "8c7113bdadec429b8e6931fee82f7925",
+      "Id": "0051c9b19e97480eb1fc53bae3b143dc"
+    },
+    {
+      "Start": "1ce42ee892d14f53baa668a1f7818312",
+      "End": "f5acad71c2e74b3e9e17af5f1a39d11f",
+      "Id": "46b33d2273bf48e691fa87d98470860d"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.6.1.8786",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "Background Preview",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "NodeViews": [
+      {
+        "ShowGeometry": true,
+        "Name": "IFC_batch",
+        "Id": "a7a231de10bf4007b1a98a7da298effd",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 785.81235164029977,
+        "Y": 353.79721343792062
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Export Folder (Select Path)\r\n",
+        "Id": "03206c9eef1f4727adff8dfc3adc0bdf",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 228.9412719432774,
+        "Y": 344.34488564183675
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Enter IFC Export Version (optional)\r\n",
+        "Id": "150e4aebc4564829bb92d50ac63a9e41",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 192.72283195252965,
+        "Y": 589.5740258750584
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Python Script",
+        "Id": "e5141ea9fe4345b1b97f118b7979c558",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 47.264565615125946,
+        "Y": 1360.0533927301335
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Watch",
+        "Id": "602f29e0f7214b56bd463190e3527079",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 323.78302174826143,
+        "Y": 1514.5504989770975
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Enter Custom Save Path (Optional)\r\n",
+        "Id": "07441063450045b9af5b5e14303f58d8",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 191.07115867342469,
+        "Y": 677.02600498931781
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Enter 3D Views to Export (Comma-Separated)\r\n",
+        "Id": "e83da14db6514f8485212e4d864dfa75",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 111.42980505257458,
+        "Y": 423.6638484761242
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Watch",
+        "Id": "6fa7e94e8b174f099bff1c2b1d83b2f8",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1181.8550500169106,
+        "Y": 328.04569693970086
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Output",
+        "Id": "561a9912c22444109db374f8556109d5",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": true,
+        "X": 690.59032969132022,
+        "Y": 927.82459185321011
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Watch",
+        "Id": "b861b21db77d4ef58fbda57e70cb1767",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 982.32955092865745,
+        "Y": 850.56474849774293
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Lists 3D Views)",
+        "Id": "d375d68e7a3e46049ffa26890bc42611",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 109.21502843993487,
+        "Y": 897.522405459949
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "29bba0a158a54f4db3979a0f90140c16",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": -113.0,
+        "Y": 1174.0
+      }
+    ],
+    "Annotations": [
+      {
+        "Id": "297604b20e1549b194c3722c7de585c3",
+        "Title": "Chekc IFC views\r\n",
+        "Nodes": [
+          "e5141ea9fe4345b1b97f118b7979c558",
+          "602f29e0f7214b56bd463190e3527079"
+        ],
+        "Left": 37.264565615125946,
+        "Top": 1263.3867260634668,
+        "Width": 505.85178946646886,
+        "Height": 628.83043958029748,
+        "FontSize": 36.0,
+        "InitialTop": 1360.0533927301335,
+        "InitialHeight": 299.497106246964,
+        "TextblockHeight": 86.666666666666671,
+        "Background": "#FFFF7BAC"
+      },
+      {
+        "Id": "88f037db91474789a91e62a67029883f",
+        "Title": "Inputs",
+        "Nodes": [
+          "03206c9eef1f4727adff8dfc3adc0bdf",
+          "150e4aebc4564829bb92d50ac63a9e41",
+          "07441063450045b9af5b5e14303f58d8",
+          "e83da14db6514f8485212e4d864dfa75"
+        ],
+        "Left": 101.42980505257458,
+        "Top": 291.01155230850344,
+        "Width": 373.29302689995507,
+        "Height": 455.01445268081437,
+        "FontSize": 36.0,
+        "InitialTop": 344.34488564183675,
+        "InitialHeight": 477.68111934748106,
+        "TextblockHeight": 43.333333333333336,
+        "Background": "#FFC1D676"
+      },
+      {
+        "Id": "e6264d71e4914b09ba35e271dd0d3222",
+        "Title": "Result",
+        "Nodes": [
+          "6fa7e94e8b174f099bff1c2b1d83b2f8"
+        ],
+        "Left": 1171.8550500169106,
+        "Top": 274.71236360636755,
+        "Width": 310.0,
+        "Height": 246.99999999999997,
+        "FontSize": 36.0,
+        "InitialTop": 328.04569693970086,
+        "InitialHeight": 145.0,
+        "TextblockHeight": 43.333333333333336,
+        "Background": "#FF48B9FF"
+      },
+      {
+        "Id": "233840c747e941c2afe191063792e41b",
+        "Title": "Output (integrated)",
+        "Nodes": [
+          "561a9912c22444109db374f8556109d5",
+          "b861b21db77d4ef58fbda57e70cb1767"
+        ],
+        "Left": 680.59032969132022,
+        "Top": 797.23141516440955,
+        "Width": 390.40588790400392,
+        "Height": 224.92651002213387,
+        "FontSize": 36.0,
+        "InitialTop": 850.56474849774293,
+        "InitialHeight": 222.25984335546718,
+        "TextblockHeight": 43.333333333333336,
+        "Background": "#FFFFB8D8"
+      },
+      {
+        "Id": "7d8ef8c663ef46ea8020cc28669dea09",
+        "Title": "Available 3d Views",
+        "Nodes": [
+          "d375d68e7a3e46049ffa26890bc42611"
+        ],
+        "Left": 99.215028439934869,
+        "Top": 800.8557387932824,
+        "Width": 169.33333333333334,
+        "Height": 190.99999999999994,
+        "FontSize": 36.0,
+        "InitialTop": 897.522405459949,
+        "InitialHeight": 145.0,
+        "TextblockHeight": 86.666666666666671,
+        "Background": "#FFB9F9E1"
+      },
+      {
+        "Id": "6ba99f8044eb4d23ae111368da5e236a",
+        "Title": "Core",
+        "Nodes": [
+          "a7a231de10bf4007b1a98a7da298effd"
+        ],
+        "Left": 775.81235164029977,
+        "Top": 300.4638801045873,
+        "Width": 144.0,
+        "Height": 172.33333333333331,
+        "FontSize": 36.0,
+        "InitialTop": 353.79721343792062,
+        "InitialHeight": 145.0,
+        "TextblockHeight": 43.333333333333336,
+        "Background": "#FFFFC999"
+      }
+    ],
+    "X": -62.879251612345683,
+    "Y": -140.72403702575167,
+    "Zoom": 0.65243989526115653
+  }
+}
